@@ -64,9 +64,10 @@ function mergeConfig(input: z.infer<typeof schema>): DepcheckConfig {
     rules: {
       ...DEFAULT_CONFIG.rules,
       ignoredDependencies: input.rules.ignoredDependencies,
-      ignoredFindings: input.rules.ignoredFindings.map((item) =>
-        item.packageName === undefined ? { code: item.code, reason: item.reason } : item,
-      ),
+      ignoredFindings: input.rules.ignoredFindings.map((item) => {
+        if (item.packageName === undefined) return { code: item.code, reason: item.reason };
+        return { code: item.code, packageName: item.packageName, reason: item.reason };
+      }),
     },
     security: { ...DEFAULT_CONFIG.security, ...input.security },
     reporting: { ...DEFAULT_CONFIG.reporting, ...input.reporting },

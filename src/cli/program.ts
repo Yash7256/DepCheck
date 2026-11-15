@@ -1,0 +1,76 @@
+import { Command } from 'commander';
+
+import { registerDuplicatesCommand } from '../commands/duplicates.js';
+import { registerFixCommand } from '../commands/fix.js';
+import { registerOutdatedCommand } from '../commands/outdated.js';
+import { registerReportCommand } from '../commands/report.js';
+import { registerScanCommand } from '../commands/scan.js';
+import { registerSecurityCommand } from '../commands/security.js';
+import { CliError, getErrorMessage, getExitCode, isHelpOrVersionError } from './errors.js';
+import { getGlobalOptions } from './options.js';
+import { createTerminalOutput } from './output.js';
+import type { CliGlobalOptions, CliStreams, ExitCode } from './types.js';
+
+export const CLI_VERSION = '0.1.0';
+export const CLI_DESCRIPTION = 'Audit JavaScript and TypeScript project dependencies.';
+
+export function createProgram(streams: CliStreams): Command {
+  const program = new Command();
+
+  program
+    .name('depcheck')
+    .description(CLI_DESCRIPTION)
+    .version(CLI_VERSION)
+    .option('--verbose', 'include diagnostic details')
+    .option('--quiet', 'suppress informational output')
+    .option('--cwd <path>', 'run against a specific working directory')
+    .configureOutput({
+      writeOut: (message) => streams.stdout.write(message),
+      writeErr: (message) => streams.stderr.write(message),
+    })
+    .exitOverride();
+
+  registerScanCommand(program, streams);
+  registerOutdatedCommand(program, streams);
+  registerDuplicatesCommand(program, streams);
+  registerSecurityCommand(program, streams);
+  registerReportCommand(program, streams);
+  registerFixCommand(program, streams);
+
+  return program;
+}
+
+function getOptionsFromArguments(argv: string[]): CliGlobalOptions {
+  return {
+    verbose: argv.includes('--verbose'),
+    quiet: argv.includes('--quiet'),
+  };
+}
+
+export async function runCli(
+  argv: string[],
+  streams: CliStreams = { stdout: process.stdout, stderr: process.stderr },
+): Promise<ExitCode> {
+  const initialOptions = getOptionsFromArguments(argv);
+  const initialOutput = createTerminalOutput(initialOptions, streams);
+  const program = createProgram(streams);
+
+  try {
+    await program.parseAsync(['node', 'depcheck', ...argv]);
+    return 0;
+  } catch (error) {
+    if (isHelpOrVersionError(error)) return 0;
+
+    const exitCode = getExitCode(error);
+    const message = getErrorMessage(error);
+    initialOutput.error(message);
+
+    if (initialOptions.verbose && !(error instanceof CliError && error.exitCode === 2)) {
+      initialOutput.verbose(error instanceof Error && error.stack ? error.stack : message);
+    }
+
+    return exitCode;
+  }
+}
+
+export { getGlobalOptions };

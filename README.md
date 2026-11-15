@@ -4,8 +4,9 @@ DepCheck is an open-source dependency auditing CLI for JavaScript and TypeScript
 
 ## Status
 
-Phase 02 CLI infrastructure is complete. All planned commands are registered, but their analysis
-and mutation behavior is intentionally reserved for future phases.
+Phase 03 project scanning is complete. The `scan` command discovers the root manifest, source
+files, lockfiles, package-manager evidence, and configured workspaces. Dependency analysis and
+mutation behavior remain reserved for future phases.
 
 ## Usage
 
@@ -25,8 +26,9 @@ Global options are available to every command:
 - `--quiet` suppresses informational output while preserving errors.
 - `--cwd <path>` selects and validates the working directory.
 
-The commands currently print a placeholder message and do not scan projects, analyze dependencies,
-generate reports, or modify files.
+`scan` performs project discovery and reports factual scan counts. The `outdated`, `duplicates`,
+`security`, `report`, and `fix` commands are registered placeholders. No command currently
+parses source contents, resolves dependencies, generates reports, or modifies files.
 
 ## Exit codes
 
@@ -52,8 +54,8 @@ npm run typecheck
 npm run format:check
 ```
 
-The future package executable is reserved as `depcheck`; command handlers are intentionally not
-implemented yet.
+The package executable is `depcheck`. Only the Phase 03 scanner is implemented; analysis and
+remediation commands are intentionally not implemented yet.
 
 ## License
 

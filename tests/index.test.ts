@@ -85,11 +85,12 @@ describe('CLI infrastructure', () => {
     expect(invalidPath.stderr.content).toContain('Directory does not exist');
   });
 
-  it('runs a placeholder command without fabricating analysis results', async () => {
+  it('runs the scanner without fabricating analysis results', async () => {
     const result = streams();
 
     expect(await runCli(['scan'], result)).toBe(0);
-    expect(result.stdout.content).toContain('scan is registered but not implemented yet');
+    expect(result.stdout.content).toContain('Source files:');
+    expect(result.stdout.content).toContain('Package manager:');
     expect(result.stdout.content).not.toContain('unused dependencies');
   });
 

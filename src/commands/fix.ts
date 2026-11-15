@@ -7,6 +7,7 @@ import { createFixProposals } from '../fixes/proposals.js';
 import { formatFixPreview } from '../fixes/preview.js';
 import { applyManifestProposals } from '../fixes/manifest-editor.js';
 import { getGlobalOptions } from '../cli/options.js';
+import { CliError } from '../cli/errors.js';
 import { createTerminalOutput } from '../cli/output.js';
 import { resolveProjectDirectory } from '../cli/paths.js';
 import type { CliStreams } from '../cli/types.js';
@@ -31,8 +32,9 @@ export function registerFixCommand(program: Command, streams: CliStreams): void 
           config?: string;
         };
         if (options.apply && !options.yes)
-          throw new Error(
+          throw new CliError(
             'Applying fixes requires --yes confirmation. Use --dry-run to preview changes.',
+            2,
           );
         const loaded = await loadConfig(project, options.config);
         const config = mergeCliConfig(loaded.config, {});
@@ -46,7 +48,12 @@ export function registerFixCommand(program: Command, streams: CliStreams): void 
         for (const item of applied.failed)
           output.error(`Failed ${item.proposal.packageName}: ${item.error}`);
         if (applied.failed.length > 0) throw new Error('One or more fixes failed.');
-        output.success('Fixes applied. Re-run depcheck scan to validate the project.');
+        const validation = await scanAndParseProject(project, { config });
+        if (validation.audit.diagnostics.length > 0)
+          throw new Error('Post-fix validation was incomplete.');
+        output.success(
+          `Fixes applied and validated. Remaining findings: ${validation.audit.findings.length}.`,
+        );
       },
     );
 }

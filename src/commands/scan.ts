@@ -18,7 +18,7 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
     .description('Scan a JavaScript or TypeScript project for dependency issues.')
     .option('--json', 'reserved for machine-readable scan output')
     .option('--no-security', 'skip security analysis')
-    .option('--format <format>', 'output format: terminal, json, or html', 'terminal')
+    .option('--format <format>', 'output format: terminal, json, or html')
     .option('--output <path>', 'write the report to a file')
     .option('--color', 'enable terminal color')
     .option('--no-color', 'disable terminal color')
@@ -53,7 +53,7 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
           scanOptions: { include: config.include, exclude: config.exclude },
           config,
         });
-        const format = command.opts().format as ReportFormat;
+        const format = (command.opts().format ?? config.reporting.format) as ReportFormat;
         if (!['terminal', 'json', 'html'].includes(format)) {
           throw new CliError(`Invalid report format: ${format}`, 2);
         }

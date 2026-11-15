@@ -6,14 +6,25 @@ import { getGlobalOptions } from '../cli/options.js';
 import { createTerminalOutput } from '../cli/output.js';
 import { resolveProjectDirectory } from '../cli/paths.js';
 import type { CliStreams } from '../cli/types.js';
+import { loadConfig } from '../config/loader.js';
+import { mergeCliConfig } from '../config/merge.js';
+import { renderReport } from '../reporters/index.js';
+import { writeReport } from '../reporters/output-manager.js';
+import type { ReportFormat } from '../reporters/shared/report.types.js';
 
 export function registerScanCommand(program: Command, streams: CliStreams): void {
   program
     .command('scan [path]')
     .description('Scan a JavaScript or TypeScript project for dependency issues.')
     .option('--json', 'reserved for machine-readable scan output')
-    .option('--ignore <pattern...>', 'reserved for ignored paths or packages')
     .option('--no-security', 'skip security analysis')
+    .option('--format <format>', 'output format: terminal, json, or html', 'terminal')
+    .option('--output <path>', 'write the report to a file')
+    .option('--color', 'enable terminal color')
+    .option('--no-color', 'disable terminal color')
+    .option('--config <path>', 'configuration file path')
+    .option('--ignore <package...>', 'ignore dependency names')
+    .option('--exclude <pattern...>', 'exclude source-file patterns')
     .action(
       async (
         pathArgument: string | undefined,
@@ -24,9 +35,42 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
         const output = createTerminalOutput(options, streams);
         const projectDirectory = resolveProjectDirectory(pathArgument, options.cwd);
         const commandOptions = command.opts() as { security?: boolean };
+        const rawOptions = command.opts() as {
+          config?: string;
+          ignore?: string[];
+          exclude?: string[];
+        };
+        const config = mergeCliConfig(
+          (await loadConfig(projectDirectory, rawOptions.config)).config,
+          {
+            ...(command.opts().format === undefined ? {} : { format: command.opts().format }),
+            ...(rawOptions.ignore === undefined ? {} : { ignore: rawOptions.ignore }),
+            ...(rawOptions.exclude === undefined ? {} : { exclude: rawOptions.exclude }),
+          },
+        );
         const result = await scanAndParseProject(projectDirectory, {
           skipSecurity: commandOptions.security === false,
+          scanOptions: { include: config.include, exclude: config.exclude },
+          config,
         });
+        const format = command.opts().format as ReportFormat;
+        if (!['terminal', 'json', 'html'].includes(format)) {
+          throw new CliError(`Invalid report format: ${format}`, 2);
+        }
+        const report = await renderReport(result.audit, format, {
+          ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
+          ...(options.verbose === undefined ? {} : { verbose: options.verbose }),
+        });
+        const outputPath = command.opts().output;
+        if (typeof outputPath === 'string') await writeReport(outputPath, report, projectDirectory);
+        else if (format !== 'terminal' || !options.quiet) streams.stdout.write(report);
+        if (format !== 'terminal') {
+          if (result.audit.diagnostics.length > 0)
+            throw new CliError('Audit could not complete cleanly.', 1, { silent: true });
+          if (result.audit.findings.length > 0)
+            throw new CliError('Audit completed with findings.', 4, { silent: true });
+          return;
+        }
 
         output.verbose(`Scanned project directory: ${result.scan.rootDirectory}`);
         output.info(`Scanned ${result.scan.rootManifest.name ?? 'unnamed project'}.`);

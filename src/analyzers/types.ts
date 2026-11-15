@@ -63,8 +63,12 @@ export interface AuditSummary {
 
 export interface AuditResult {
   projectRoot: string;
+  projectName?: string;
+  filesParsed?: number;
   findings: Finding[];
   diagnostics: AnalyzerDiagnostic[];
   summary: AuditSummary;
   incomplete?: boolean;
+  analyzerStatus?: Record<string, 'completed' | 'incomplete' | 'unsupported' | 'failed'>;
+  suppressedFindings?: Array<Finding & { suppressionReason: string }>;
 }

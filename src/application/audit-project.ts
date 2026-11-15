@@ -82,6 +82,8 @@ export async function auditProject(
 
   return {
     projectRoot: scan.rootDirectory,
+    ...(scan.rootManifest.name === undefined ? {} : { projectName: scan.rootManifest.name }),
+    filesParsed: parse.summary.filesParsed,
     findings,
     diagnostics,
     summary: {
@@ -96,5 +98,13 @@ export async function auditProject(
       },
     },
     incomplete: diagnostics.length > 0,
+    analyzerStatus: {
+      unused: 'completed',
+      missing: 'completed',
+      duplicates: duplicates.diagnostics.length > 0 ? 'incomplete' : 'completed',
+      outdated: outdated.diagnostics.length > 0 ? 'incomplete' : 'completed',
+      security: security.diagnostics.length > 0 ? 'incomplete' : 'completed',
+      'dependency-tree': tree.diagnostics.length > 0 ? 'incomplete' : 'completed',
+    },
   };
 }

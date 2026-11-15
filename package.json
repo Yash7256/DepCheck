@@ -1,12 +1,28 @@
 {
-  "name": "depcheck-cli",
+  "name": "depcheck-audit-cli",
   "version": "0.1.0",
   "description": "A dependency auditing CLI for JavaScript and TypeScript projects.",
+  "keywords": [
+    "dependencies",
+    "audit",
+    "javascript",
+    "typescript",
+    "cli"
+  ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "depcheck": "./dist/index.js"
   },
@@ -24,7 +40,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:e2e": "node scripts/e2e.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "package:check": "npm pack --dry-run"
   },
   "dependencies": {
     "commander": "^14.0.2",

@@ -1,83 +1,79 @@
 # DepCheck
 
-DepCheck is an open-source dependency auditing CLI for JavaScript and TypeScript projects.
+DepCheck is an open-source dependency auditing CLI for JavaScript and TypeScript projects. It
+discovers project structure, parses source imports without executing application code, resolves
+references against manifests, and produces structured audit reports.
 
-## Status
+## Current status
 
-Phase 09 configuration and safe-fix infrastructure is complete. The `scan` command discovers project files,
-parses JavaScript and TypeScript module references, resolves declarations against root or owning
-workspace manifests, and reports unused, missing, and duplicate resolved dependency-version
-findings.
+The core scan, parser, resolver, analyzers, reporting, configuration, and guarded fix layers are
+implemented. The publishable package name is `depcheck-audit-cli`; its executable is `depcheck`.
 
-## Usage
-
-```sh
-depcheck --help
-depcheck scan [path]
-depcheck outdated [path]
-depcheck duplicates [path]
-depcheck security [path]
-depcheck report [path]
-depcheck fix [path]
-```
-
-Global options are available to every command:
-
-- `--verbose` prints diagnostic details.
-- `--quiet` suppresses informational output while preserving errors.
-- `--cwd <path>` selects and validates the working directory.
-
-`scan` performs the project, parser, resolver, and analyzer pipeline. The `outdated`, `duplicates`,
-`security`, `report`, and `fix` commands are registered placeholders. No command generates reports
-or modifies files.
-
-Findings use `error`, `warning`, or `info` severity and `high`, `medium`, or `low` confidence.
-Unused-dependency findings are deliberately low confidence because absence of recognizable usage
-does not prove a package is unused. Duplicate resolved-version analysis currently supports npm via
-`npm ls --all --json`; pnpm, Yarn, Bun, and unknown package managers produce diagnostics instead.
-
-Example output:
-
-```text
-Findings: 2
-Finding summary: unused 1, missing 1, duplicates 0
-Warning: [warning] UNUSED_DEPENDENCY: left-pad is declared in dependencies but no recognizable usage was found.
-Warning: [error] MISSING_DEPENDENCY: zod is imported but is not declared by the owning package manifest.
-```
-
-## Exit codes
-
-- `0` — successful execution with no findings or diagnostics.
-- `1` — unexpected runtime failure.
-- `2` — invalid CLI usage, arguments, or conflicting options.
-- `3` — missing or invalid project directory.
-- `4` — audit completed with findings.
-
-## Requirements
+## Requirements and quick start
 
 - Node.js 20 or newer
 - npm
 
-## Development
-
 ```sh
 npm install
 npm run build
-npm test
-npm run lint
-npm run typecheck
-npm run format:check
+node dist/index.js scan .
 ```
 
-The package executable is `depcheck`. Core analyzers are implemented for the `scan` command;
-outdated, security, and tree commands are available with npm/OSV limitations; reporting and
-remediation functionality is intentionally not implemented yet.
+After publication, install it globally or invoke it through `npx`:
+
+```sh
+npm install --global depcheck-audit-cli
+depcheck scan .
+
+npx depcheck-audit-cli scan .
+```
+
+During local development, use the built entry point or a packed tarball.
+
+## Commands
+
+```text
+depcheck scan [path]
+depcheck outdated [path]
+depcheck duplicates [path]
+depcheck security [path]
+depcheck tree [path]
+depcheck report [path]
+depcheck fix [path]
+```
+
+`scan`, `outdated`, `security`, and `tree` run their current analysis workflows. `report` is a
+registered placeholder. `fix` supports preview and explicitly confirmed manifest changes; it does
+not install packages or edit lockfiles. See [docs/commands.md](docs/commands.md).
+
+## Global options
+
+- `--verbose` includes diagnostic details.
+- `--quiet` suppresses informational terminal output but never suppresses errors.
+- `--cwd <path>` selects a directory for the command.
+
+`--verbose` and `--quiet` are mutually exclusive. Paths must exist and refer to directories;
+relative paths are resolved from the process working directory, or from `--cwd` where applicable.
+
+## Reports
+
+The scan reporter supports terminal, JSON, and self-contained HTML output:
+
+```sh
+depcheck scan . --format terminal
+depcheck scan . --format json --output depcheck-report.json
+depcheck scan . --format html --output depcheck-report.html
+```
+
+Reports include project metadata, summary counts, findings, diagnostics, analyzer status, and any
+suppressed findings. Report output is escaped and written using UTF-8 filesystem APIs.
 
 ## Configuration
 
-DepCheck discovers `depcheck.config.json` in the selected project root. Use `--config` to select
-an explicit JSON file. CLI options override project configuration, which overrides built-in defaults.
-Unknown fields and invalid values are rejected.
+DepCheck discovers `depcheck.config.json` in the selected project root. Use `--config <path>` to
+select an explicit JSON file. CLI values override project configuration, which overrides built-in
+defaults. Unknown fields and invalid values are rejected.
 
 ```json
 {
@@ -100,35 +96,61 @@ Unknown fields and invalid values are rejected.
 }
 ```
 
+See [docs/configuration.md](docs/configuration.md) for the complete configuration contract.
+
 ## Safe fixes
 
-`depcheck fix` is preview-only by default:
+`fix` is preview-only by default:
 
 ```sh
-depcheck fix --dry-run
-depcheck fix --apply --yes
+depcheck fix . --dry-run
+depcheck fix . --apply --yes
 ```
 
-Only high-confidence unused dependencies in `dependencies` or `devDependencies` can be removed,
-and only when `removeUnusedDependencies` is enabled. Peer and optional dependencies are never
-removed automatically. Patch/minor updates preserve the existing `^`, `~`, or pinned strategy;
-major updates require `allowMajorUpdates`. Lockfiles are never edited and packages are never
-installed automatically. Fixes are validated at the manifest-write boundary and unrelated fields
-are preserved.
+Only approved high-confidence proposals in normal dependency sections can be applied. Peer and
+optional dependencies are not removed automatically. Patch and minor updates preserve the
+existing pinned, caret, or tilde strategy; major updates require `allowMajorUpdates`. Lockfiles
+are never edited and packages are never installed. A full backup/rollback workflow is not yet
+available, so review previews and use version control before applying changes.
 
-Advanced commands:
+## Supported package managers
+
+Manifest and lockfile discovery recognizes npm, pnpm, Yarn, and Bun evidence. npm dependency-tree
+analysis is implemented; unsupported package-manager tree analysis produces a diagnostic rather
+than invoking the wrong tool. Registry analysis uses npm metadata and security analysis uses OSV.
+See [docs/supported-package-managers.md](docs/supported-package-managers.md).
+
+## Exit codes
+
+- `0` — successful execution with no findings or diagnostics.
+- `1` — general runtime failure or incomplete analysis.
+- `2` — invalid command-line usage, arguments, or conflicting options.
+- `3` — missing, invalid, or non-directory project path.
+- `4` — audit completed with findings.
+
+Provider failures, unsupported package managers, malformed provider responses, and network
+failures are reported as diagnostics and do not count as a clean audit.
+
+## Development
 
 ```sh
-depcheck outdated [path] --include-prerelease --depth all
-depcheck security [path] --severity high --offline
-depcheck tree [path] --depth 3
-depcheck scan [path] --no-security
+npm ci
+npm run lint
+npm run format:check
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e
+npm run package:check
 ```
 
-Outdated analysis uses npm registry metadata and is skipped with a diagnostic when registry data is
-unavailable or a declaration is not a normal semver range. Security analysis uses the OSV API and
-never treats a provider failure as zero vulnerabilities. Duplicate and tree analysis currently use
-`npm ls --all --json`; pnpm, Yarn, Bun, and unknown package managers report unsupported analysis.
+Additional documentation is in [`docs/`](docs/), including architecture, analyzers, reporting,
+auto-fix safety, supported package managers, and troubleshooting. `npm run benchmark` performs an
+optional local source-discovery/parser benchmark against a generated fixture.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for responsible vulnerability reporting.
 
 ## License
 

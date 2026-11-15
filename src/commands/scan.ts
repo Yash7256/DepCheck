@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 
-import { scanProjectUseCase } from '../application/scan-project.js';
+import { scanAndParseProject } from '../application/scan-and-parse-project.js';
 import { getGlobalOptions } from '../cli/options.js';
 import { createTerminalOutput } from '../cli/output.js';
 import { resolveProjectDirectory } from '../cli/paths.js';
@@ -21,17 +21,30 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
         const options = getGlobalOptions(command);
         const output = createTerminalOutput(options, streams);
         const projectDirectory = resolveProjectDirectory(pathArgument, options.cwd);
-        const result = await scanProjectUseCase(projectDirectory);
+        const result = await scanAndParseProject(projectDirectory);
 
-        output.verbose(`Scanned project directory: ${result.rootDirectory}`);
-        output.info(`Scanned ${result.rootManifest.name ?? 'unnamed project'}.`);
-        output.info(`Source files: ${result.summary.sourceFileCount}`);
-        output.info(`Workspaces: ${result.summary.workspaceCount}`);
-        output.info(`Lockfiles: ${result.summary.lockfileCount}`);
-        output.info(`Package manager: ${result.packageManager}`);
-        if (result.packageManagerEvidence.conflicts.length > 0) {
+        output.verbose(`Scanned project directory: ${result.scan.rootDirectory}`);
+        output.info(`Scanned ${result.scan.rootManifest.name ?? 'unnamed project'}.`);
+        output.info(`Files parsed: ${result.parse.summary.filesParsed}`);
+        output.info(`Total references: ${result.parse.summary.totalReferences}`);
+        output.info(`Static imports: ${result.parse.summary.staticImports}`);
+        output.info(`Dynamic imports: ${result.parse.summary.dynamicImports}`);
+        output.info(`CommonJS imports: ${result.parse.summary.commonjsImports}`);
+        output.info(`Re-exports: ${result.parse.summary.reExports}`);
+        output.info(`Type-only imports: ${result.parse.summary.typeOnlyImports}`);
+        if (result.scan.packageManagerEvidence.conflicts.length > 0) {
           output.warning(
-            `Conflicting package-manager evidence: ${result.packageManagerEvidence.conflicts.join(', ')}.`,
+            `Conflicting package-manager evidence: ${result.scan.packageManagerEvidence.conflicts.join(', ')}.`,
+          );
+        }
+        for (const reference of result.parse.references) {
+          output.verbose(
+            `${reference.referenceType} ${reference.moduleSpecifier} at ${reference.filePath}:${reference.location.line}:${reference.location.column}`,
+          );
+        }
+        for (const diagnostic of result.parse.diagnostics) {
+          output.verbose(
+            `Parser ${diagnostic.category}: ${diagnostic.message} at ${diagnostic.filePath}:${diagnostic.line}:${diagnostic.column}`,
           );
         }
       },

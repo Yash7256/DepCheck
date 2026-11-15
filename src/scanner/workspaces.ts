@@ -31,7 +31,7 @@ export async function discoverWorkspaces(
   });
   const workspacePaths = [
     ...new Set(paths.map((path) => resolve(path)).filter((path) => path !== rootManifest.path)),
-  ];
+  ].sort();
   const workspaces: WorkspaceInfo[] = [];
 
   for (const manifestPath of workspacePaths) {

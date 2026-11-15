@@ -218,7 +218,7 @@ describe('workspace and scan discovery', () => {
 
     const cliStreams = streams();
     expect(await runCli(['scan', project], cliStreams)).toBe(0);
-    expect(cliStreams.stdout.content).toContain('Source files: 1');
-    expect(cliStreams.stdout.content).toContain('Package manager: npm');
+    expect(cliStreams.stdout.content).toContain('Files parsed: 1');
+    expect(cliStreams.stdout.content).toContain('Total references: 0');
   });
 });

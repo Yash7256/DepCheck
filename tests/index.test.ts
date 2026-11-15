@@ -89,8 +89,8 @@ describe('CLI infrastructure', () => {
     const result = streams();
 
     expect(await runCli(['scan'], result)).toBe(0);
-    expect(result.stdout.content).toContain('Source files:');
-    expect(result.stdout.content).toContain('Package manager:');
+    expect(result.stdout.content).toContain('Files parsed:');
+    expect(result.stdout.content).toContain('Total references:');
     expect(result.stdout.content).not.toContain('unused dependencies');
   });
 

@@ -6,6 +6,7 @@ import { registerOutdatedCommand } from '../commands/outdated.js';
 import { registerReportCommand } from '../commands/report.js';
 import { registerScanCommand } from '../commands/scan.js';
 import { registerSecurityCommand } from '../commands/security.js';
+import { registerTreeCommand } from '../commands/tree.js';
 import { CliError, getErrorMessage, getExitCode, isHelpOrVersionError } from './errors.js';
 import { getGlobalOptions } from './options.js';
 import { createTerminalOutput } from './output.js';
@@ -36,6 +37,7 @@ export function createProgram(streams: CliStreams): Command {
   registerSecurityCommand(program, streams);
   registerReportCommand(program, streams);
   registerFixCommand(program, streams);
+  registerTreeCommand(program, streams);
 
   return program;
 }
@@ -63,9 +65,12 @@ export async function runCli(
 
     const exitCode = getExitCode(error);
     const message = getErrorMessage(error);
-    initialOutput.error(message);
+    if (!(error instanceof CliError && error.silent)) initialOutput.error(message);
 
-    if (initialOptions.verbose && !(error instanceof CliError && error.exitCode === 2)) {
+    if (
+      initialOptions.verbose &&
+      !(error instanceof CliError && (error.exitCode === 2 || error.silent))
+    ) {
       initialOutput.verbose(error instanceof Error && error.stack ? error.stack : message);
     }
 

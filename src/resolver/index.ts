@@ -198,6 +198,7 @@ export async function resolveDependencies(
       classification: classification.classification,
       dependency: classification.dependency,
       filePath: reference.filePath,
+      manifestPath: index.manifest.path,
       line: reference.location.line,
       column: reference.location.column,
       workspace,

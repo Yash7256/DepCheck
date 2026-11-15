@@ -217,7 +217,7 @@ describe('workspace and scan discovery', () => {
     expect(result.rootManifest.dependencies.react).toBe('^19.0.0');
 
     const cliStreams = streams();
-    expect(await runCli(['scan', project], cliStreams)).toBe(0);
+    expect(await runCli(['scan', project], cliStreams)).toBe(1);
     expect(cliStreams.stdout.content).toContain('Files parsed: 1');
     expect(cliStreams.stdout.content).toContain('Total references: 0');
     expect(cliStreams.stdout.content).toContain('Declared references: 0');

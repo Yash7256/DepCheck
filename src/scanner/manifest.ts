@@ -77,6 +77,10 @@ export function parseManifest(content: string, manifestPath: string): PackageMan
   const version = readOptionalString(source.version, 'version');
   const privateField = readOptionalBoolean(source.private, 'private');
   const packageManager = readOptionalString(source.packageManager, 'packageManager');
+  const scripts = source.scripts === undefined ? undefined : source.scripts;
+  if (scripts !== undefined && !isStringRecord(scripts)) {
+    throw createScannerError(`Invalid scripts in package.json: ${manifestPath}`);
+  }
   const workspaces = readWorkspaces(source.workspaces);
 
   return {
@@ -84,6 +88,7 @@ export function parseManifest(content: string, manifestPath: string): PackageMan
     ...(name === undefined ? {} : { name }),
     ...(version === undefined ? {} : { version }),
     ...(privateField === undefined ? {} : { private: privateField }),
+    ...(scripts === undefined ? {} : { scripts }),
     dependencies: dependencyDeclarations.dependencies,
     devDependencies: dependencyDeclarations.devDependencies,
     peerDependencies: dependencyDeclarations.peerDependencies,

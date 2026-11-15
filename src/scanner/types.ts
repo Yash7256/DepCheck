@@ -16,6 +16,7 @@ export interface PackageManifest extends DependencyDeclarations {
   name?: string;
   version?: string;
   private?: boolean;
+  scripts?: Record<string, string>;
   workspaces?: WorkspaceConfiguration;
   packageManager?: string;
 }

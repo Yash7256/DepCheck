@@ -4,11 +4,13 @@ import type { ExitCode } from './types.js';
 
 export class CliError extends Error {
   readonly exitCode: ExitCode;
+  readonly silent: boolean;
 
-  constructor(message: string, exitCode: ExitCode, options?: ErrorOptions) {
+  constructor(message: string, exitCode: ExitCode, options?: ErrorOptions & { silent?: boolean }) {
     super(message, options);
     this.name = 'CliError';
     this.exitCode = exitCode;
+    this.silent = options?.silent ?? false;
   }
 }
 

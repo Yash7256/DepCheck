@@ -27,6 +27,7 @@ export interface ResolvedReference {
   classification: ReferenceClassification;
   dependency: DeclaredDependency | null;
   filePath: string;
+  manifestPath: string;
   line: number;
   column: number;
   workspace: WorkspaceInfo | null;

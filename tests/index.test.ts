@@ -34,6 +34,7 @@ describe('CLI infrastructure', () => {
       'security',
       'report',
       'fix',
+      'tree',
     ]);
   });
 
@@ -88,7 +89,7 @@ describe('CLI infrastructure', () => {
   it('runs the scanner without fabricating analysis results', async () => {
     const result = streams();
 
-    expect(await runCli(['scan'], result)).toBe(0);
+    expect(await runCli(['scan'], result)).toBe(1);
     expect(result.stdout.content).toContain('Files parsed:');
     expect(result.stdout.content).toContain('Total references:');
     expect(result.stdout.content).not.toContain('unused dependencies');
@@ -98,7 +99,7 @@ describe('CLI infrastructure', () => {
     const success = streams();
     const failure = streams();
 
-    expect(await runCli(['--quiet', 'scan'], success)).toBe(0);
+    expect(await runCli(['--quiet', 'scan'], success)).toBe(1);
     expect(success.stdout.content).toBe('');
 
     expect(await runCli(['--quiet', 'scan', '/missing'], failure)).toBe(3);

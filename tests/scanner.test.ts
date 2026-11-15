@@ -220,5 +220,6 @@ describe('workspace and scan discovery', () => {
     expect(await runCli(['scan', project], cliStreams)).toBe(0);
     expect(cliStreams.stdout.content).toContain('Files parsed: 1');
     expect(cliStreams.stdout.content).toContain('Total references: 0');
+    expect(cliStreams.stdout.content).toContain('Declared references: 0');
   });
 });

@@ -32,14 +32,21 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
         output.info(`CommonJS imports: ${result.parse.summary.commonjsImports}`);
         output.info(`Re-exports: ${result.parse.summary.reExports}`);
         output.info(`Type-only imports: ${result.parse.summary.typeOnlyImports}`);
+        output.info(`Declared references: ${result.resolve.summary.declaredReferences}`);
+        output.info(`Alias references: ${result.resolve.summary.aliasReferences}`);
+        output.info(`Built-in references: ${result.resolve.summary.builtinReferences}`);
+        output.info(`Local references: ${result.resolve.summary.localReferences}`);
+        output.info(`Workspace references: ${result.resolve.summary.workspaceReferences}`);
+        output.info(`Undeclared references: ${result.resolve.summary.undeclaredReferences}`);
+        output.info(`Unknown references: ${result.resolve.summary.unknownReferences}`);
         if (result.scan.packageManagerEvidence.conflicts.length > 0) {
           output.warning(
             `Conflicting package-manager evidence: ${result.scan.packageManagerEvidence.conflicts.join(', ')}.`,
           );
         }
-        for (const reference of result.parse.references) {
+        for (const reference of result.resolve.references) {
           output.verbose(
-            `${reference.referenceType} ${reference.moduleSpecifier} at ${reference.filePath}:${reference.location.line}:${reference.location.column}`,
+            `${reference.classification} ${reference.moduleSpecifier} at ${reference.filePath}:${reference.line}:${reference.column}`,
           );
         }
         for (const diagnostic of result.parse.diagnostics) {

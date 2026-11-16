@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { relative, sep } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 import fg from 'fast-glob';
 import ignore, { type Ignore } from 'ignore';
@@ -30,7 +30,7 @@ async function readGitignore(projectDirectory: string): Promise<Ignore> {
   const rules = ignore();
 
   try {
-    rules.add(await readFile(`${projectDirectory}/.gitignore`, 'utf8'));
+    rules.add(await readFile(join(projectDirectory, '.gitignore'), 'utf8'));
   } catch {
     // A project without .gitignore is valid and has no additional ignore rules.
   }

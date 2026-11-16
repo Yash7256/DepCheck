@@ -216,8 +216,10 @@ describe('workspace and scan discovery', () => {
     expect(result.packageManager).toBe('npm');
     expect(result.rootManifest.dependencies.react).toBe('^19.0.0');
 
+    const cliProject = await createProject({ name: 'cli-fixture' });
+    await writeProjectFile(cliProject, 'src/index.ts');
     const cliStreams = streams();
-    expect(await runCli(['scan', project], cliStreams)).toBe(1);
+    expect(await runCli(['scan', cliProject, '--no-security'], cliStreams)).toBe(1);
     expect(cliStreams.stdout.content).toContain('Files parsed: 1');
     expect(cliStreams.stdout.content).toContain('Total references: 0');
     expect(cliStreams.stdout.content).toContain('Declared references: 0');

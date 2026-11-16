@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { CLI_VERSION, createProgram, runCli } from '../src/cli/program.js';
 import type { CliStreams } from '../src/cli/types.js';
@@ -16,6 +20,22 @@ class TestStream {
 function streams(): CliStreams & { stdout: TestStream; stderr: TestStream } {
   return { stdout: new TestStream(), stderr: new TestStream() };
 }
+
+const temporaryDirectories: string[] = [];
+
+async function createCliFixture(): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), 'depcheck-cli-'));
+  temporaryDirectories.push(directory);
+  await writeFile(join(directory, 'package.json'), JSON.stringify({ name: 'cli-fixture' }), 'utf8');
+  await writeFile(join(directory, 'index.ts'), "import fs from 'node:fs';\n", 'utf8');
+  return directory;
+}
+
+afterEach(async () => {
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })),
+  );
+});
 
 describe('project foundation', () => {
   it('exports the package name', () => {
@@ -88,8 +108,9 @@ describe('CLI infrastructure', () => {
 
   it('runs the scanner without fabricating analysis results', async () => {
     const result = streams();
+    const project = await createCliFixture();
 
-    expect(await runCli(['scan'], result)).toBe(1);
+    expect(await runCli(['scan', project, '--no-security'], result)).toBe(1);
     expect(result.stdout.content).toContain('Files parsed:');
     expect(result.stdout.content).toContain('Total references:');
     expect(result.stdout.content).not.toContain('unused dependencies');
@@ -98,8 +119,9 @@ describe('CLI infrastructure', () => {
   it('keeps errors visible in quiet mode and suppresses informational output', async () => {
     const success = streams();
     const failure = streams();
+    const project = await createCliFixture();
 
-    expect(await runCli(['--quiet', 'scan'], success)).toBe(1);
+    expect(await runCli(['--quiet', 'scan', project, '--no-security'], success)).toBe(1);
     expect(success.stdout.content).toBe('');
 
     expect(await runCli(['--quiet', 'scan', '/missing'], failure)).toBe(3);

@@ -1,3 +1,6 @@
+import { join } from 'node:path';
+
+import type { AnalyzerProgress } from '../progress/types.js';
 import type { DependencyTreeNode, DependencyTreeProvider } from './duplicates.js';
 import type { AnalyzerDiagnostic, Finding, FindingSeverity } from './types.js';
 
@@ -104,6 +107,7 @@ export async function analyzeSecurity(
   projectRoot: string,
   packageManager: string,
   provider: VulnerabilityProvider = new OsvVulnerabilityProvider(),
+  onProgress?: AnalyzerProgress,
 ): Promise<{ findings: Finding[]; diagnostics: AnalyzerDiagnostic[] }> {
   if (packageManager !== 'npm')
     return {
@@ -131,6 +135,9 @@ export async function analyzeSecurity(
     };
   const packages = new Map<string, TreePackage>();
   packagesFromTree(treeResult.tree, ['project'], packages);
+  const total = packages.size;
+  let completed = 0;
+  onProgress?.(0, total);
   const findings: Finding[] = [];
   const diagnostics: AnalyzerDiagnostic[] = [...treeResult.diagnostics];
   for (const item of packages.values()) {
@@ -150,7 +157,7 @@ export async function analyzeSecurity(
           message:
             vulnerability.summary ??
             `${item.name}@${item.version} has vulnerability ${vulnerability.id}.`,
-          manifestPath: `${projectRoot}/package.json`,
+          manifestPath: join(projectRoot, 'package.json'),
           details: {
             installedVersion: item.version,
             vulnerabilityId: vulnerability.id,
@@ -166,6 +173,9 @@ export async function analyzeSecurity(
         message: `Unable to query OSV for ${item.name}@${item.version}: ${String(error)}`,
         severity: 'error',
       });
+    } finally {
+      completed += 1;
+      onProgress?.(completed, total);
     }
   }
   return { findings, diagnostics };

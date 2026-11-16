@@ -12,6 +12,7 @@ import type { ProjectScanResult } from '../scanner/types.js';
 import { analyzeOutdatedDependencies } from '../analyzers/outdated.js';
 import { analyzeSecurity } from '../analyzers/security.js';
 import { analyzeDependencyTree } from '../analyzers/tree.js';
+import { NOOP_PROGRESS, type ProgressReporter } from '../progress/types.js';
 
 function parserDiagnostics(parse: ParseProjectResult): AnalyzerDiagnostic[] {
   return parse.diagnostics.map((diagnostic) => ({
@@ -38,33 +39,64 @@ export async function auditProject(
   parse: ParseProjectResult,
   resolution: DependencyResolutionResult,
   dependencyTreeProvider?: DependencyTreeProvider,
-  options: { skipSecurity?: boolean; offlineSecurity?: boolean } = {},
+  options: { skipSecurity?: boolean; offlineSecurity?: boolean; progress?: ProgressReporter } = {},
 ): Promise<AuditResult> {
+  const progress = options.progress ?? NOOP_PROGRESS;
   const treeProvider = dependencyTreeProvider ?? new NpmDependencyTreeProvider();
+  progress.start('Analyzing unused dependencies');
   const unused = await analyzeUnusedDependencies(scan, resolution);
+  progress.complete(`Unused dependencies: ${unused.length} finding(s)`);
+  progress.start('Analyzing missing dependencies');
   const missing = analyzeMissingDependencies(resolution);
+  progress.complete(`Missing dependencies: ${missing.length} finding(s)`);
+  progress.start('Checking duplicate dependency versions (npm ls)');
   const duplicates = await analyzeDuplicateDependencyVersions(
     scan.rootDirectory,
     scan.packageManager,
     treeProvider,
   );
-  const outdated = await analyzeOutdatedDependencies(scan);
-  const security = options.skipSecurity
-    ? { findings: [], diagnostics: [] }
-    : options.offlineSecurity
-      ? {
-          findings: [],
-          diagnostics: [
-            {
-              code: 'SECURITY_OFFLINE_UNAVAILABLE',
-              message:
-                'Offline security analysis requires a local vulnerability cache, which is not configured.',
-              severity: 'error' as const,
-            },
-          ],
-        }
-      : await analyzeSecurity(treeProvider, scan.rootDirectory, scan.packageManager);
+  progress.complete(`Duplicate versions: ${duplicates.findings.length} finding(s)`);
+  progress.start('Checking outdated dependencies on the npm registry');
+  const outdated = await analyzeOutdatedDependencies(
+    scan,
+    undefined,
+    new Map(),
+    (completed, total) => progress.update(`Checked ${completed}/${total} packages`),
+  );
+  progress.complete(`Outdated dependencies: ${outdated.findings.length} finding(s)`);
+  let security: { findings: Finding[]; diagnostics: AnalyzerDiagnostic[] };
+  if (options.skipSecurity) {
+    progress.start('Skipping security analysis');
+    security = { findings: [], diagnostics: [] };
+    progress.complete('Security analysis skipped');
+  } else if (options.offlineSecurity) {
+    progress.start('Skipping online security analysis');
+    security = {
+      findings: [],
+      diagnostics: [
+        {
+          code: 'SECURITY_OFFLINE_UNAVAILABLE',
+          message:
+            'Offline security analysis requires a local vulnerability cache, which is not configured.',
+          severity: 'error',
+        },
+      ],
+    };
+    progress.complete('Security analysis skipped (offline)');
+  } else {
+    progress.start('Checking known vulnerabilities via OSV');
+    security = await analyzeSecurity(
+      treeProvider,
+      scan.rootDirectory,
+      scan.packageManager,
+      undefined,
+      (completed, total) => progress.update(`Checked ${completed}/${total} package versions`),
+    );
+    progress.complete(`Security vulnerabilities: ${security.findings.length} finding(s)`);
+  }
+  progress.start('Building dependency-tree statistics (npm ls)');
   const tree = await analyzeDependencyTree(scan.rootDirectory, scan.packageManager, treeProvider);
+  progress.complete(`Resolved ${tree.statistics.totalResolvedInstances} dependency instances`);
   const findings = [
     ...unused,
     ...missing,

@@ -5,6 +5,7 @@ import { CliError } from '../cli/errors.js';
 import { getGlobalOptions } from '../cli/options.js';
 import { createTerminalOutput } from '../cli/output.js';
 import { resolveProjectDirectory } from '../cli/paths.js';
+import { createCliProgress, withProgress } from '../cli/progress.js';
 import type { CliStreams } from '../cli/types.js';
 import { loadConfig } from '../config/loader.js';
 import { mergeCliConfig } from '../config/merge.js';
@@ -33,6 +34,7 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
       ) => {
         const options = getGlobalOptions(command);
         const output = createTerminalOutput(options, streams);
+        const progress = createCliProgress(options, streams);
         const projectDirectory = resolveProjectDirectory(pathArgument, options.cwd);
         const commandOptions = command.opts() as { security?: boolean };
         const rawOptions = command.opts() as {
@@ -48,11 +50,14 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
             ...(rawOptions.exclude === undefined ? {} : { exclude: rawOptions.exclude }),
           },
         );
-        const result = await scanAndParseProject(projectDirectory, {
-          skipSecurity: commandOptions.security === false,
-          scanOptions: { include: config.include, exclude: config.exclude },
-          config,
-        });
+        const result = await withProgress(progress, () =>
+          scanAndParseProject(projectDirectory, {
+            skipSecurity: commandOptions.security === false,
+            scanOptions: { include: config.include, exclude: config.exclude },
+            config,
+            progress,
+          }),
+        );
         const format = (command.opts().format ?? config.reporting.format) as ReportFormat;
         if (!['terminal', 'json', 'html'].includes(format)) {
           throw new CliError(`Invalid report format: ${format}`, 2);

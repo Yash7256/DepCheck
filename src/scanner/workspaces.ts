@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import fg from 'fast-glob';
 
@@ -9,8 +9,11 @@ import type { PackageManifest, WorkspaceInfo } from './types.js';
 function workspaceManifestPatterns(manifest: PackageManifest): string[] {
   return (manifest.workspaces?.packages ?? []).map((pattern) => {
     const negated = pattern.startsWith('!');
-    const value = negated ? pattern.slice(1) : pattern;
-    const manifestPattern = value.endsWith('package.json') ? value : join(value, 'package.json');
+    const value = (negated ? pattern.slice(1) : pattern).replace(/\\/g, '/');
+    const normalizedValue = value.replace(/\/+$/, '');
+    const manifestPattern = normalizedValue.endsWith('package.json')
+      ? normalizedValue
+      : `${normalizedValue}/package.json`;
     return negated ? `!${manifestPattern}` : manifestPattern;
   });
 }

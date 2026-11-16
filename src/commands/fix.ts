@@ -10,6 +10,7 @@ import { getGlobalOptions } from '../cli/options.js';
 import { CliError } from '../cli/errors.js';
 import { createTerminalOutput } from '../cli/output.js';
 import { resolveProjectDirectory } from '../cli/paths.js';
+import { createCliProgress, withProgress } from '../cli/progress.js';
 import type { CliStreams } from '../cli/types.js';
 
 export function registerFixCommand(program: Command, streams: CliStreams): void {
@@ -24,6 +25,7 @@ export function registerFixCommand(program: Command, streams: CliStreams): void 
       async (path: string | undefined, _options: Record<string, unknown>, command: Command) => {
         const global = getGlobalOptions(command);
         const output = createTerminalOutput(global, streams);
+        const progress = createCliProgress(global, streams);
         const project = resolveProjectDirectory(path, global.cwd);
         const options = command.opts() as {
           apply?: boolean;
@@ -38,7 +40,9 @@ export function registerFixCommand(program: Command, streams: CliStreams): void 
           );
         const loaded = await loadConfig(project, options.config);
         const config = mergeCliConfig(loaded.config, {});
-        const workflow = await scanAndParseProject(project, { config });
+        const workflow = await withProgress(progress, () =>
+          scanAndParseProject(project, { config, progress }),
+        );
         const proposals = createFixProposals(workflow.audit, config);
         output.info(formatFixPreview(proposals));
         if (!options.apply || options.dryRun || proposals.length === 0) return;
@@ -48,7 +52,9 @@ export function registerFixCommand(program: Command, streams: CliStreams): void 
         for (const item of applied.failed)
           output.error(`Failed ${item.proposal.packageName}: ${item.error}`);
         if (applied.failed.length > 0) throw new Error('One or more fixes failed.');
-        const validation = await scanAndParseProject(project, { config });
+        const validation = await withProgress(progress, () =>
+          scanAndParseProject(project, { config, progress }),
+        );
         if (validation.audit.diagnostics.length > 0)
           throw new Error('Post-fix validation was incomplete.');
         output.success(

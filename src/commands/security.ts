@@ -5,6 +5,7 @@ import { CliError } from '../cli/errors.js';
 import { getGlobalOptions } from '../cli/options.js';
 import { createTerminalOutput } from '../cli/output.js';
 import { resolveProjectDirectory } from '../cli/paths.js';
+import { createCliProgress, withProgress } from '../cli/progress.js';
 import type { CliStreams } from '../cli/types.js';
 import { renderReport } from '../reporters/index.js';
 import { writeReport } from '../reporters/output-manager.js';
@@ -26,12 +27,16 @@ export function registerSecurityCommand(program: Command, streams: CliStreams): 
       async (path: string | undefined, _options: Record<string, unknown>, command: Command) => {
         const global = getGlobalOptions(command);
         const output = createTerminalOutput(global, streams);
+        const progress = createCliProgress(global, streams);
         const commandOptions = command.opts() as { offline?: boolean };
-        const result = await scanAndParseProject(resolveProjectDirectory(path, global.cwd), {
-          ...(commandOptions.offline === undefined
-            ? {}
-            : { offlineSecurity: commandOptions.offline }),
-        });
+        const result = await withProgress(progress, () =>
+          scanAndParseProject(resolveProjectDirectory(path, global.cwd), {
+            ...(commandOptions.offline === undefined
+              ? {}
+              : { offlineSecurity: commandOptions.offline }),
+            progress,
+          }),
+        );
         const format = command.opts().format as ReportFormat;
         if (!['terminal', 'json', 'html'].includes(format))
           throw new CliError(`Invalid report format: ${format}`, 2);

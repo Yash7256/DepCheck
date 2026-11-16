@@ -7,6 +7,7 @@ export type ExitCode = 0 | 1 | 2 | 3 | 4;
 export interface CliGlobalOptions {
   verbose?: boolean;
   quiet?: boolean;
+  progress?: boolean;
   cwd?: string;
 }
 

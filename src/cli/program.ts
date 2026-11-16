@@ -24,6 +24,7 @@ export function createProgram(streams: CliStreams): Command {
     .version(CLI_VERSION)
     .option('--verbose', 'include diagnostic details')
     .option('--quiet', 'suppress informational output')
+    .option('--no-progress', 'disable live progress output')
     .option('--cwd <path>', 'run against a specific working directory')
     .configureOutput({
       writeOut: (message) => streams.stdout.write(message),

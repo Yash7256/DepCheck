@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { join } from 'node:path';
 
 import type { PackageManager } from '../scanner/types.js';
 import type { AnalyzerDiagnostic, Finding } from './types.js';
@@ -97,11 +98,11 @@ export class NpmDependencyTreeProvider implements DependencyTreeProvider {
         stderr += chunk.toString();
       });
       const timer = setTimeout(() => {
-        child.kill('SIGKILL');
+        child.kill();
         finish({
           tree: null,
           diagnostics: [
-            diagnostic('DUPLICATE_TREE_TIMEOUT', `npm ls timed out after ${NPM_TIMEOUT_MS}ms.`),
+            diagnostic('DUPLICATE_TREE_TIMEOUT', `npm ls timed out after ${this.timeoutMs}ms.`),
           ],
         });
       }, this.timeoutMs);
@@ -192,7 +193,7 @@ export function analyzeDuplicateDependencyVersions(
         severity: 'warning',
         confidence: 'high',
         message: `${packageName} resolves to multiple versions in the dependency tree.`,
-        manifestPath: `${projectRoot}/package.json`,
+        manifestPath: join(projectRoot, 'package.json'),
         details: {
           versions: [...packageVersions.entries()].map(([version, locations]) => ({
             version,

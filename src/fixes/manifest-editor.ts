@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import type { FixProposal } from './types.js';
 
@@ -37,9 +37,37 @@ export async function applyManifestProposals(
       const current = await readFile(path, 'utf8');
       if (createHash('sha256').update(current).digest('hex') !== snapshot.hash)
         throw new Error('Concurrent modification detected');
-      const temporary = `${path}.depcheck.tmp`;
-      await writeFile(temporary, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
-      await rename(temporary, path);
+      const temporary = `${path}.${process.pid}.${Date.now()}.depcheck.tmp`;
+      const content = `${JSON.stringify(manifest, null, 2)}\n`;
+      try {
+        await writeFile(temporary, content, 'utf8');
+        try {
+          await rename(temporary, path);
+        } catch (error) {
+          const code =
+            error !== null && typeof error === 'object' && 'code' in error
+              ? Reflect.get(error, 'code')
+              : undefined;
+          if (
+            process.platform !== 'win32' ||
+            (code !== 'EEXIST' && code !== 'EPERM' && code !== 'ENOTEMPTY')
+          )
+            throw error;
+          // Windows cannot always rename over an existing file. The hash check above
+          // still protects against overwriting a concurrent change.
+          const backup = `${path}.${process.pid}.${Date.now()}.depcheck.bak`;
+          await rename(path, backup);
+          try {
+            await rename(temporary, path);
+          } catch (replacementError) {
+            await rename(backup, path).catch(() => undefined);
+            throw replacementError;
+          }
+          await unlink(backup).catch(() => undefined);
+        }
+      } finally {
+        await unlink(temporary).catch(() => undefined);
+      }
       applied.push(...pathProposals);
     } catch (error) {
       for (const proposal of pathProposals) failed.push({ proposal, error: String(error) });

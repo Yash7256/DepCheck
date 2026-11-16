@@ -1,5 +1,6 @@
 import semver from 'semver';
 
+import type { AnalyzerProgress } from '../progress/types.js';
 import { readManifest } from '../scanner/manifest.js';
 import type { PackageManifest, ProjectScanResult, WorkspaceInfo } from '../scanner/types.js';
 import type { AnalyzerDiagnostic, Finding } from './types.js';
@@ -80,6 +81,7 @@ export async function analyzeOutdatedDependencies(
   scan: ProjectScanResult,
   provider: PackageRegistryProvider = new NpmRegistryProvider(),
   installedVersions: ReadonlyMap<string, string> = new Map(),
+  onProgress?: AnalyzerProgress,
 ): Promise<{ findings: Finding[]; diagnostics: AnalyzerDiagnostic[] }> {
   const declarations = (await manifests(scan)).flatMap(({ manifest, workspace }) =>
     (
@@ -97,67 +99,75 @@ export async function analyzeOutdatedDependencies(
   const unique = [...new Map(declarations.map((item) => [item.name, item])).values()];
   const findings: Finding[] = [];
   const diagnostics: AnalyzerDiagnostic[] = [];
+  const total = unique.length;
+  let completed = 0;
+  onProgress?.(0, total);
   for (let offset = 0; offset < unique.length; offset += 6) {
     await Promise.all(
       unique.slice(offset, offset + 6).map(async (item) => {
-        if (
-          item.range.startsWith('npm:') ||
-          item.range.startsWith('workspace:') ||
-          item.range.startsWith('file:') ||
-          item.range.startsWith('.') ||
-          item.range.includes('://') ||
-          !semver.validRange(item.range)
-        ) {
-          if (
-            !item.range.startsWith('npm:') &&
-            !item.range.startsWith('workspace:') &&
-            !item.range.startsWith('file:') &&
-            !item.range.startsWith('.') &&
-            !item.range.includes('://')
-          )
-            diagnostics.push({
-              code: 'OUTDATED_INVALID_RANGE',
-              message: `Invalid or unsupported version range for ${item.name}: ${item.range}`,
-              severity: 'warning',
-            });
-          return;
-        }
         try {
-          const metadata = await provider.getPackageMetadata(item.name);
-          const versions = Object.keys(metadata.versions).filter(
-            (version) => semver.valid(version) !== null,
-          );
-          const wanted = semver.maxSatisfying(versions, item.range);
-          const latest = metadata['dist-tags']?.latest;
-          if (wanted === null || latest === undefined || semver.valid(latest) === null) return;
-          const kind = updateType(item.range, latest);
-          if (kind === 'up-to-date') return;
-          findings.push({
-            id: `OUTDATED_DEPENDENCY:${item.manifestPath}:${item.name}`,
-            code: 'OUTDATED_DEPENDENCY',
-            analyzer: 'outdated',
-            packageName: item.name,
-            severity: 'info',
-            confidence: 'high',
-            message: `${item.name} has a newer available version.`,
-            manifestPath: item.manifestPath,
-            details: {
-              declaredVersion: item.range,
-              installedVersion: installedVersions.get(item.name),
-              wantedVersion: wanted,
-              latestVersion: latest,
-              updateType: kind,
-              dependencyType: item.type,
-              workspace: item.workspace?.name ?? null,
-            },
-          });
-        } catch (error) {
-          diagnostics.push({
-            code: 'OUTDATED_REGISTRY_ERROR',
-            message: `Unable to retrieve metadata for ${item.name}: ${String(error)}`,
-            severity: 'warning',
-            details: { packageName: item.name },
-          });
+          if (
+            item.range.startsWith('npm:') ||
+            item.range.startsWith('workspace:') ||
+            item.range.startsWith('file:') ||
+            item.range.startsWith('.') ||
+            item.range.includes('://') ||
+            !semver.validRange(item.range)
+          ) {
+            if (
+              !item.range.startsWith('npm:') &&
+              !item.range.startsWith('workspace:') &&
+              !item.range.startsWith('file:') &&
+              !item.range.startsWith('.') &&
+              !item.range.includes('://')
+            )
+              diagnostics.push({
+                code: 'OUTDATED_INVALID_RANGE',
+                message: `Invalid or unsupported version range for ${item.name}: ${item.range}`,
+                severity: 'warning',
+              });
+            return;
+          }
+          try {
+            const metadata = await provider.getPackageMetadata(item.name);
+            const versions = Object.keys(metadata.versions).filter(
+              (version) => semver.valid(version) !== null,
+            );
+            const wanted = semver.maxSatisfying(versions, item.range);
+            const latest = metadata['dist-tags']?.latest;
+            if (wanted === null || latest === undefined || semver.valid(latest) === null) return;
+            const kind = updateType(item.range, latest);
+            if (kind === 'up-to-date') return;
+            findings.push({
+              id: `OUTDATED_DEPENDENCY:${item.manifestPath}:${item.name}`,
+              code: 'OUTDATED_DEPENDENCY',
+              analyzer: 'outdated',
+              packageName: item.name,
+              severity: 'info',
+              confidence: 'high',
+              message: `${item.name} has a newer available version.`,
+              manifestPath: item.manifestPath,
+              details: {
+                declaredVersion: item.range,
+                installedVersion: installedVersions.get(item.name),
+                wantedVersion: wanted,
+                latestVersion: latest,
+                updateType: kind,
+                dependencyType: item.type,
+                workspace: item.workspace?.name ?? null,
+              },
+            });
+          } catch (error) {
+            diagnostics.push({
+              code: 'OUTDATED_REGISTRY_ERROR',
+              message: `Unable to retrieve metadata for ${item.name}: ${String(error)}`,
+              severity: 'warning',
+              details: { packageName: item.name },
+            });
+          }
+        } finally {
+          completed += 1;
+          onProgress?.(completed, total);
         }
       }),
     );

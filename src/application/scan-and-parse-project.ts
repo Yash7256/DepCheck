@@ -1,5 +1,6 @@
 import { parseProjectSourceFiles } from '../parser/parse-project.js';
 import type { ParseProjectResult } from '../parser/types.js';
+import { NOOP_PROGRESS, type ProgressReporter } from '../progress/types.js';
 import { auditProject } from './audit-project.js';
 import type { AuditResult } from '../analyzers/types.js';
 import { resolveDependencies } from '../resolver/index.js';
@@ -19,15 +20,29 @@ export interface ScanAndParseOptions {
   offlineSecurity?: boolean;
   scanOptions?: { include?: string[]; exclude?: string[] };
   config?: import('../config/types.js').DepcheckConfig;
+  progress?: ProgressReporter;
 }
 
 export async function scanAndParseProject(
   projectDirectory: string,
   options: ScanAndParseOptions = {},
 ): Promise<ScanAndParseProjectResult> {
+  const progress = options.progress ?? NOOP_PROGRESS;
+  progress.start(`Scanning project structure in ${projectDirectory}`);
   const scan = await scanProject(projectDirectory, options.scanOptions);
-  const parse = await parseProjectSourceFiles(scan.sourceFiles);
+  progress.complete(
+    `Found ${scan.sourceFiles.length} source files and ${scan.workspaces.length} workspaces`,
+  );
+  progress.start(`Parsing ${scan.sourceFiles.length} source files`);
+  const parse = await parseProjectSourceFiles(scan.sourceFiles, (completed, total) => {
+    progress.update(`Parsed ${completed}/${total} files`);
+  });
+  progress.complete(
+    `Parsed ${parse.summary.filesParsed} files and ${parse.summary.totalReferences} references`,
+  );
+  progress.start(`Resolving ${parse.references.length} references`);
   const resolve = await resolveDependencies(scan, parse.references);
+  progress.complete(`Resolved ${resolve.summary.totalReferences} references`);
   const audit = await auditProject(scan, parse, resolve, undefined, options);
   if (options.config !== undefined) {
     const suppressedFindings = audit.findings.filter(

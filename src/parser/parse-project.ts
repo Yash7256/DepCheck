@@ -1,3 +1,4 @@
+import type { AnalyzerProgress } from '../progress/types.js';
 import { parseSourceFile } from './parse-source.js';
 import type {
   ImportReference,
@@ -20,8 +21,20 @@ function summarize(filesParsed: number, references: ImportReference[]): ParserSu
   };
 }
 
-export async function parseProjectSourceFiles(filePaths: string[]): Promise<ParseProjectResult> {
-  const parsedFiles = await Promise.all(filePaths.map((filePath) => parseSourceFile(filePath)));
+export async function parseProjectSourceFiles(
+  filePaths: string[],
+  onProgress?: AnalyzerProgress,
+): Promise<ParseProjectResult> {
+  let completed = 0;
+  onProgress?.(0, filePaths.length);
+  const parsedFiles = await Promise.all(
+    filePaths.map(async (filePath) => {
+      const result = await parseSourceFile(filePath);
+      completed += 1;
+      onProgress?.(completed, filePaths.length);
+      return result;
+    }),
+  );
   const references = parsedFiles.flatMap((result) => result.references);
   const diagnostics: ParseDiagnostic[] = parsedFiles.flatMap((result) => result.diagnostics);
 

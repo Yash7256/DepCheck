@@ -155,11 +155,14 @@ import other from '@fixture/other';
     expect(bySpecifier.get('react')?.classification).toBe('undeclared');
     expect(bySpecifier.get('@fixture/other')?.classification).toBe('workspace');
     expect(bySpecifier.get('workspace-dep')?.workspace?.name).toBe('@fixture/app');
-    expect(bySpecifier.get('workspace-dep')?.dependency?.workspacePath).toContain('packages/app');
+    expect(
+      bySpecifier.get('workspace-dep')?.dependency?.workspacePath?.replaceAll('\\', '/'),
+    ).toContain('packages/app');
 
     const rootReference = result.references.find(
       (reference) =>
-        reference.filePath.endsWith('src/root.ts') && reference.moduleSpecifier === 'root-only',
+        reference.filePath.replaceAll('\\', '/').endsWith('src/root.ts') &&
+        reference.moduleSpecifier === 'root-only',
     );
     expect(rootReference?.classification).toBe('declared');
     expect(rootReference?.workspace).toBeNull();

@@ -277,10 +277,7 @@ function parseImportEqualsDeclaration(
   addReference(references, sourceFile, expression, moduleSpecifier, 'commonjs', 'commonjs', false);
 }
 
-export async function parseSourceFile(
-  filePath: string,
-  transpileModule: typeof ts.transpileModule = ts.transpileModule,
-): Promise<{
+export async function parseSourceFile(filePath: string): Promise<{
   references: ImportReference[];
   diagnostics: ParseDiagnostic[];
 }> {
@@ -310,25 +307,10 @@ export async function parseSourceFile(
     scriptKindForFile(filePath),
   );
   const references: ImportReference[] = [];
-  let diagnostics: ParseDiagnostic[] = [];
-  try {
-    const transpiled = transpileModule(content, {
-      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.Latest },
-      fileName: filePath,
-      reportDiagnostics: true,
-    });
-    diagnostics = (transpiled.diagnostics ?? []).map((item) =>
-      parseDiagnosticFromCompilerDiagnostic(sourceFile, item),
-    );
-  } catch (error) {
-    diagnostics.push({
-      filePath,
-      message: `TypeScript parser failed: ${error instanceof Error ? error.message : String(error)}`,
-      category: 'error',
-      line: 1,
-      column: 1,
-    });
-  }
+  const parseDiagnostics = Reflect.get(sourceFile, 'parseDiagnostics') as ts.Diagnostic[];
+  const diagnostics = parseDiagnostics.map((item) =>
+    parseDiagnosticFromCompilerDiagnostic(sourceFile, item),
+  );
 
   function visit(node: ts.Node): void {
     if (ts.isImportDeclaration(node)) parseImportDeclaration(sourceFile, node, references);

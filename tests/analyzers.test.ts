@@ -275,6 +275,23 @@ describe('core analyzers', () => {
 });
 
 describe('npm dependency-tree provider', () => {
+  it('uses the Windows command shell for npm.cmd', async () => {
+    let invocation: { executable: string; options: { shell?: boolean } } | undefined;
+    const provider = new NpmDependencyTreeProvider(
+      ((executable: string, _args: string[], options: { shell?: boolean }) => {
+        invocation = { executable, options };
+        return fakeSpawn('{"dependencies":{}}', '', 0)();
+      }) as never,
+      10_000,
+      'win32',
+    );
+
+    await provider.getDependencyTree('C:\\project');
+
+    expect(invocation?.executable).toBe('npm.cmd');
+    expect(invocation?.options.shell).toBe(true);
+  });
+
   it('parses valid JSON even when npm exits non-zero', async () => {
     const provider = new NpmDependencyTreeProvider(
       fakeSpawn('{"dependencies":{"pkg":{"version":"1.0.0"}}}', 'peer warning', 1) as never,

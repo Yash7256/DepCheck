@@ -60,17 +60,19 @@ export class NpmDependencyTreeProvider implements DependencyTreeProvider {
   constructor(
     private readonly spawnProcess: SpawnProcess = spawn,
     private readonly timeoutMs = NPM_TIMEOUT_MS,
+    private readonly platformName: NodeJS.Platform = process.platform,
   ) {}
 
   getDependencyTree(projectRoot: string): Promise<DependencyTreeResult> {
     return new Promise((resolve) => {
-      const executable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      const isWindows = this.platformName === 'win32';
+      const executable = isWindows ? 'npm.cmd' : 'npm';
       let child: ChildProcess;
       try {
         child = this.spawnProcess(executable, ['ls', '--all', '--json'], {
           cwd: projectRoot,
           stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false,
+          shell: isWindows,
         });
       } catch (error) {
         resolve({

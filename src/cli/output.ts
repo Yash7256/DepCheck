@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import type { CliGlobalOptions, CliStreams } from './types.js';
 
 export interface TerminalOutput {
@@ -18,19 +20,20 @@ export function createTerminalOutput(
 ): TerminalOutput {
   return {
     info(message) {
-      if (!options.quiet) write(streams.stdout, message);
+      if (!options.quiet) write(streams.stdout, `${chalk.blue('Info:')} ${message}`);
     },
     success(message) {
-      if (!options.quiet) write(streams.stdout, message);
+      if (!options.quiet) write(streams.stdout, `${chalk.green('Success:')} ${message}`);
     },
     warning(message) {
-      if (!options.quiet) write(streams.stderr, `Warning: ${message}`);
+      if (!options.quiet) write(streams.stderr, `${chalk.yellow('Warning:')} ${message}`);
     },
     error(message) {
-      write(streams.stderr, `Error: ${message}`);
+      write(streams.stderr, `${chalk.red('Error:')} ${message}`);
     },
     verbose(message) {
-      if (options.verbose && !options.quiet) write(streams.stderr, `Verbose: ${message}`);
+      if (options.verbose && !options.quiet)
+        write(streams.stderr, `${chalk.gray('Verbose:')} ${message}`);
     },
   };
 }

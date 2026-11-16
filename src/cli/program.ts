@@ -1,9 +1,10 @@
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 
 import { registerDuplicatesCommand } from '../commands/duplicates.js';
 import { registerFixCommand } from '../commands/fix.js';
 import { registerOutdatedCommand } from '../commands/outdated.js';
 import { registerReportCommand } from '../commands/report.js';
+import { registerRootAction } from '../commands/root.js';
 import { registerScanCommand } from '../commands/scan.js';
 import { registerSecurityCommand } from '../commands/security.js';
 import { registerTreeCommand } from '../commands/tree.js';
@@ -39,6 +40,8 @@ export function createProgram(streams: CliStreams): Command {
     })
     .exitOverride();
 
+  registerRootAction(program, streams, CLI_VERSION);
+
   registerScanCommand(program, streams);
   registerOutdatedCommand(program, streams);
   registerDuplicatesCommand(program, streams);
@@ -61,6 +64,16 @@ function shouldCheckForUpdate(argv: string[]): boolean {
   return !argv.some(
     (argument) =>
       argument === '--help' || argument === '-h' || argument === '--version' || argument === '-V',
+  );
+}
+
+function isUnknownRootCommand(error: unknown, argv: string[], program: Command): boolean {
+  return (
+    error instanceof CommanderError &&
+    error.code === 'commander.excessArguments' &&
+    argv[0] !== undefined &&
+    !argv[0].startsWith('-') &&
+    !program.commands.some((command) => command.name() === argv[0])
   );
 }
 
@@ -88,7 +101,9 @@ export async function runCli(
     if (isHelpOrVersionError(error)) return 0;
 
     const exitCode = getExitCode(error);
-    const message = getErrorMessage(error);
+    const message = isUnknownRootCommand(error, argv, program)
+      ? `error: unknown command '${argv[0]}'`
+      : getErrorMessage(error);
     if (!(error instanceof CliError && error.silent)) initialOutput.error(message);
 
     if (

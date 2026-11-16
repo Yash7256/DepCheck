@@ -8,6 +8,7 @@ export interface CliGlobalOptions {
   verbose?: boolean;
   quiet?: boolean;
   progress?: boolean;
+  interactive?: boolean;
   cwd?: string;
 }
 

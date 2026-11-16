@@ -28,7 +28,7 @@ export function registerSecurityCommand(program: Command, streams: CliStreams): 
         const global = getGlobalOptions(command);
         const output = createTerminalOutput(global, streams);
         const progress = createCliProgress(global, streams);
-        const commandOptions = command.opts() as { offline?: boolean };
+        const commandOptions = command.optsWithGlobals() as { offline?: boolean };
         const result = await withProgress(progress, () =>
           scanAndParseProject(resolveProjectDirectory(path, global.cwd), {
             ...(commandOptions.offline === undefined
@@ -37,12 +37,13 @@ export function registerSecurityCommand(program: Command, streams: CliStreams): 
             progress,
           }),
         );
-        const format = command.opts().format as ReportFormat;
+        const format = command.optsWithGlobals().format as ReportFormat;
         if (!['terminal', 'json', 'html'].includes(format))
           throw new CliError(`Invalid report format: ${format}`, 2);
         const report = await renderReport(result.audit, format, global);
-        if (typeof command.opts().output === 'string')
-          await writeReport(command.opts().output, report, result.scan.rootDirectory);
+        const outputPath = command.optsWithGlobals().output as string | undefined;
+        if (typeof outputPath === 'string')
+          await writeReport(outputPath, report, result.scan.rootDirectory);
         else if (format !== 'terminal') streams.stdout.write(report);
         if (format !== 'terminal') return;
         for (const finding of result.audit.findings.filter(

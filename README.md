@@ -34,6 +34,7 @@ dependencies.
 - [Reports](#reports)
 - [Configuration](#configuration)
 - [Live progress](#live-progress)
+- [Interactive dashboard](#interactive-dashboard)
 - [Update notifications](#update-notifications)
 - [Exit codes](#exit-codes)
 - [CI usage](#ci-usage)
@@ -637,6 +638,35 @@ Disable progress with either option:
 depcheck scan . --no-progress
 depcheck scan . --quiet
 ```
+
+## Interactive dashboard
+
+Running `depcheck` without a subcommand or `depcheck scan [path]` opens an interactive terminal
+dashboard when stdout is a TTY. The dashboard runs the same audit pipeline as the scan command and
+provides overview, security, outdated, duplicate, unused, missing, dependency-tree, and
+package-detail sections.
+
+Keyboard controls:
+
+- `↑` / `↓`: move through findings
+- `←` / `→`: switch sections
+- `1`–`8`: open a section directly
+- `Enter`: open package details guidance
+- `E`: export the current audit as `depcheck-report.json`
+- `?`: show shortcuts
+- `Q` or `Esc`: exit
+
+Use the traditional report in scripts, CI, or terminals without interactive support:
+
+```sh
+depcheck --no-interactive
+depcheck --format json --output depcheck-report.json
+depcheck scan . --format json --output depcheck-report.json
+```
+
+The dashboard does not invent dependency paths when the current audit result does not expose them,
+and it does not update or remove packages. Package changes remain explicit operations through the
+existing `fix` workflow.
 
 ## Update notifications
 

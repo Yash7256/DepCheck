@@ -12,6 +12,8 @@ import { mergeCliConfig } from '../config/merge.js';
 import { renderReport } from '../reporters/index.js';
 import { writeReport } from '../reporters/output-manager.js';
 import type { ReportFormat } from '../reporters/shared/report.types.js';
+import { isInteractiveTerminal, renderAuditDashboard } from '../tui/index.js';
+import { CLI_VERSION } from '../cli/program.js';
 
 export function registerScanCommand(program: Command, streams: CliStreams): void {
   program
@@ -36,16 +38,20 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
         const output = createTerminalOutput(options, streams);
         const progress = createCliProgress(options, streams);
         const projectDirectory = resolveProjectDirectory(pathArgument, options.cwd);
-        const commandOptions = command.opts() as { security?: boolean };
-        const rawOptions = command.opts() as {
+        const allOptions = command.optsWithGlobals() as {
+          security?: boolean;
+          format?: ReportFormat;
+          output?: string;
           config?: string;
           ignore?: string[];
           exclude?: string[];
         };
+        const commandOptions = allOptions;
+        const rawOptions = allOptions;
         const config = mergeCliConfig(
           (await loadConfig(projectDirectory, rawOptions.config)).config,
           {
-            ...(command.opts().format === undefined ? {} : { format: command.opts().format }),
+            ...(allOptions.format === undefined ? {} : { format: allOptions.format }),
             ...(rawOptions.ignore === undefined ? {} : { ignore: rawOptions.ignore }),
             ...(rawOptions.exclude === undefined ? {} : { exclude: rawOptions.exclude }),
           },
@@ -58,15 +64,32 @@ export function registerScanCommand(program: Command, streams: CliStreams): void
             progress,
           }),
         );
-        const format = (command.opts().format ?? config.reporting.format) as ReportFormat;
+        const format = (allOptions.format ?? config.reporting.format) as ReportFormat;
         if (!['terminal', 'json', 'html'].includes(format)) {
           throw new CliError(`Invalid report format: ${format}`, 2);
+        }
+        if (
+          format === 'terminal' &&
+          options.interactive !== false &&
+          isInteractiveTerminal(streams.stdout as { isTTY?: boolean })
+        ) {
+          const exitCode =
+            result.audit.diagnostics.length > 0 ? 1 : result.audit.findings.length > 0 ? 4 : 0;
+          renderAuditDashboard(result.audit, {
+            projectRoot: result.scan.rootDirectory,
+            version: CLI_VERSION,
+            totalReferences: result.parse.summary.totalReferences,
+            onExit: () => {
+              process.exitCode = exitCode;
+            },
+          });
+          return;
         }
         const report = await renderReport(result.audit, format, {
           ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
           ...(options.verbose === undefined ? {} : { verbose: options.verbose }),
         });
-        const outputPath = command.opts().output;
+        const outputPath = allOptions.output;
         if (typeof outputPath === 'string') await writeReport(outputPath, report, projectDirectory);
         else if (format !== 'terminal' || !options.quiet) streams.stdout.write(report);
         if (format !== 'terminal') {

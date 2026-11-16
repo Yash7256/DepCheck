@@ -26,12 +26,13 @@ export function registerTreeCommand(program: Command, streams: CliStreams): void
         const result = await withProgress(progress, () =>
           scanAndParseProject(resolveProjectDirectory(path, global.cwd), { progress }),
         );
-        const format = command.opts().format as ReportFormat;
+        const format = command.optsWithGlobals().format as ReportFormat;
         if (!['terminal', 'json', 'html'].includes(format))
           throw new CliError(`Invalid report format: ${format}`, 2);
         const report = await renderReport(result.audit, format, global);
-        if (typeof command.opts().output === 'string')
-          await writeReport(command.opts().output, report, result.scan.rootDirectory);
+        const outputPath = command.optsWithGlobals().output as string | undefined;
+        if (typeof outputPath === 'string')
+          await writeReport(outputPath, report, result.scan.rootDirectory);
         else if (format !== 'terminal') streams.stdout.write(report);
         if (format !== 'terminal') return;
         const tree = result.audit.summary.tree;

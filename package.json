@@ -46,9 +46,12 @@
     "package:check": "npm pack --dry-run"
   },
   "dependencies": {
+    "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "fast-glob": "^3.3.3",
     "ignore": "^7.0.14",
+    "ink": "^6.8.0",
+    "react": "^19.3.1",
     "semver": "^7.8.6",
     "typescript": "^5.9.3",
     "zod": "^4.6.7"
@@ -56,6 +59,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
+    "@types/react": "^19.3.0",
     "@types/semver": "^7.8.0",
     "eslint": "^9.39.1",
     "prettier": "^3.6.2",

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added live progress reporting to project-scanning commands, with per-phase and package-counter
+  updates on stderr and a `--no-progress` switch.
 - Added CI coverage across supported Node.js versions and operating systems.
 - Added end-to-end smoke testing, packaging checks, and an optional local benchmark.
 - Added architecture, command, configuration, analyzer, reporting, auto-fix, package-manager, and

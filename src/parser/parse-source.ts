@@ -277,7 +277,10 @@ function parseImportEqualsDeclaration(
   addReference(references, sourceFile, expression, moduleSpecifier, 'commonjs', 'commonjs', false);
 }
 
-export async function parseSourceFile(filePath: string): Promise<{
+export async function parseSourceFile(
+  filePath: string,
+  transpileModule: typeof ts.transpileModule = ts.transpileModule,
+): Promise<{
   references: ImportReference[];
   diagnostics: ParseDiagnostic[];
 }> {
@@ -307,14 +310,25 @@ export async function parseSourceFile(filePath: string): Promise<{
     scriptKindForFile(filePath),
   );
   const references: ImportReference[] = [];
-  const transpiled = ts.transpileModule(content, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.Latest },
-    fileName: filePath,
-    reportDiagnostics: true,
-  });
-  const diagnostics = (transpiled.diagnostics ?? []).map((item) =>
-    parseDiagnosticFromCompilerDiagnostic(sourceFile, item),
-  );
+  let diagnostics: ParseDiagnostic[] = [];
+  try {
+    const transpiled = transpileModule(content, {
+      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.Latest },
+      fileName: filePath,
+      reportDiagnostics: true,
+    });
+    diagnostics = (transpiled.diagnostics ?? []).map((item) =>
+      parseDiagnosticFromCompilerDiagnostic(sourceFile, item),
+    );
+  } catch (error) {
+    diagnostics.push({
+      filePath,
+      message: `TypeScript parser failed: ${error instanceof Error ? error.message : String(error)}`,
+      category: 'error',
+      line: 1,
+      column: 1,
+    });
+  }
 
   function visit(node: ts.Node): void {
     if (ts.isImportDeclaration(node)) parseImportDeclaration(sourceFile, node, references);

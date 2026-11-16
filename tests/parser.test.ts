@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { extractPackageName } from '../src/parser/package-name.js';
 import { parseProjectSourceFiles } from '../src/parser/parse-project.js';
@@ -146,5 +146,25 @@ const value = "require('string-package')";
     expect(result.diagnostics.some((diagnostic) => diagnostic.filePath === malformedFile)).toBe(
       true,
     );
+  });
+
+  it('keeps a TypeScript transpiler failure as a file diagnostic', async () => {
+    const filePath = await createSourceFile('transpiler-failure.ts', "import 'still-found';\n");
+    const transpileSpy = vi.fn(() => {
+      throw new Error('Output generation failed');
+    });
+
+    const result = await parseSourceFile(filePath, transpileSpy);
+
+    expect(result.references.map((reference) => reference.packageName)).toEqual(['still-found']);
+    expect(result.diagnostics).toEqual([
+      {
+        filePath,
+        message: 'TypeScript parser failed: Output generation failed',
+        category: 'error',
+        line: 1,
+        column: 1,
+      },
+    ]);
   });
 });

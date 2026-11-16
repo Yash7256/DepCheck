@@ -57,18 +57,26 @@ development dependency. The examples use the package name `depcheck-audit-cli`; 
 package before using the registry-based installation commands. After installation, the command is
 `depcheck`.
 
+Unqualified npm installs use the registry's `latest` dist-tag. Run the same global install command
+again to update when a newer release is available. Pin a release only when needed:
+
+```sh
+npm install --global depcheck-audit-cli
+npm install --global depcheck-audit-cli@0.1.0
+```
+
 ### Linux
 
 Run without installing:
 
 ```sh
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Install globally:
 
 ```sh
-npm install --global depcheck-audit-cli@latest
+npm install --global depcheck-audit-cli
 depcheck --version
 ```
 
@@ -78,7 +86,7 @@ configure an npm prefix that your user owns:
 ```sh
 npm config set prefix "$HOME/.npm-global"
 export PATH="$HOME/.npm-global/bin:$PATH"
-npm install --global depcheck-audit-cli@latest
+npm install --global depcheck-audit-cli
 ```
 
 Add the `export PATH` line to your shell profile to make it permanent.
@@ -88,13 +96,13 @@ Add the `export PATH` line to your shell profile to make it permanent.
 Run without installing:
 
 ```sh
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Install globally:
 
 ```sh
-npm install --global depcheck-audit-cli@latest
+npm install --global depcheck-audit-cli
 depcheck --version
 ```
 
@@ -106,19 +114,19 @@ shell profile, or use `npx` instead.
 PowerShell:
 
 ```powershell
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Command Prompt:
 
 ```bat
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Install globally in either shell:
 
 ```powershell
-npm install --global depcheck-audit-cli@latest
+npm install --global depcheck-audit-cli
 depcheck --version
 ```
 
@@ -144,7 +152,7 @@ In Command Prompt, use `%USERPROFILE%` instead of `$HOME`:
 
 ```bat
 cd %USERPROFILE%\projects\my-app
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 ### Local project installation
@@ -190,21 +198,21 @@ Linux and macOS:
 
 ```sh
 cd ~/projects/my-app
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Windows PowerShell:
 
 ```powershell
 cd $HOME\projects\my-app
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Windows Command Prompt:
 
 ```bat
 cd %USERPROFILE%\projects\my-app
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 A first pass that skips OSV vulnerability queries is:
@@ -653,7 +661,7 @@ Use `scan --format json` and inspect either the exit code or the generated repor
 Linux and macOS:
 
 ```sh
-npx depcheck-audit-cli@latest scan . --format json --output reports/depcheck.json
+npx depcheck-audit-cli scan . --format json --output reports/depcheck.json
 status=$?
 
 if [ "$status" -eq 4 ]; then
@@ -666,7 +674,7 @@ fi
 Windows PowerShell:
 
 ```powershell
-npx depcheck-audit-cli@latest scan . --format json --output reports\depcheck.json
+npx depcheck-audit-cli scan . --format json --output reports\depcheck.json
 $status = $LASTEXITCODE
 
 if ($status -eq 4) {
@@ -679,7 +687,7 @@ if ($status -eq 4) {
 Windows Command Prompt:
 
 ```bat
-npx depcheck-audit-cli@latest scan . --format json --output reports\depcheck.json
+npx depcheck-audit-cli scan . --format json --output reports\depcheck.json
 if %ERRORLEVEL%==4 echo Dependency findings detected.
 if not %ERRORLEVEL%==0 if not %ERRORLEVEL%==4 echo DepCheck could not complete.
 ```
@@ -706,7 +714,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npx depcheck-audit-cli@latest scan . --format json --output depcheck-report.json
+      - run: npx depcheck-audit-cli scan . --format json --output depcheck-report.json
         continue-on-error: true
       - uses: actions/upload-artifact@v4
         with:
@@ -751,7 +759,7 @@ Manifest and lockfile discovery recognizes npm, pnpm, Yarn, and Bun evidence.
 Use `npx` instead of a global install:
 
 ```sh
-npx depcheck-audit-cli@latest scan .
+npx depcheck-audit-cli scan .
 ```
 
 Or check your global npm prefix and `PATH`:

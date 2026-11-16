@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-
 import { Command } from 'commander';
 
 import { registerDuplicatesCommand } from '../commands/duplicates.js';
@@ -9,6 +7,11 @@ import { registerReportCommand } from '../commands/report.js';
 import { registerScanCommand } from '../commands/scan.js';
 import { registerSecurityCommand } from '../commands/security.js';
 import { registerTreeCommand } from '../commands/tree.js';
+import {
+  checkForUpdate,
+  formatUpdateNotification,
+  isUpdateNotificationDisabled,
+} from '../services/update-checker.js';
 import { CliError, getErrorMessage, getExitCode, isHelpOrVersionError } from './errors.js';
 import { getGlobalOptions } from './options.js';
 import { createTerminalOutput } from './output.js';
@@ -16,17 +19,7 @@ import type { CliGlobalOptions, CliStreams, ExitCode } from './types.js';
 
 declare const __DEPCHECK_VERSION__: string;
 
-function readSourcePackageVersion(): string {
-  const sourcePackageJson = JSON.parse(
-    readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
-  ) as { version?: unknown };
-  return typeof sourcePackageJson.version === 'string'
-    ? sourcePackageJson.version
-    : '0.0.0-unknown';
-}
-
-export const CLI_VERSION =
-  typeof __DEPCHECK_VERSION__ === 'string' ? __DEPCHECK_VERSION__ : readSourcePackageVersion();
+export const CLI_VERSION = __DEPCHECK_VERSION__;
 export const CLI_DESCRIPTION = 'Audit JavaScript and TypeScript project dependencies.';
 
 export function createProgram(streams: CliStreams): Command {
@@ -64,6 +57,13 @@ function getOptionsFromArguments(argv: string[]): CliGlobalOptions {
   };
 }
 
+function shouldCheckForUpdate(argv: string[]): boolean {
+  return !argv.some(
+    (argument) =>
+      argument === '--help' || argument === '-h' || argument === '--version' || argument === '-V',
+  );
+}
+
 export async function runCli(
   argv: string[],
   streams: CliStreams = { stdout: process.stdout, stderr: process.stderr },
@@ -71,6 +71,15 @@ export async function runCli(
   const initialOptions = getOptionsFromArguments(argv);
   const initialOutput = createTerminalOutput(initialOptions, streams);
   const program = createProgram(streams);
+
+  if (shouldCheckForUpdate(argv) && !isUpdateNotificationDisabled()) {
+    void checkForUpdate(CLI_VERSION)
+      .then((result) => {
+        const notification = formatUpdateNotification(result);
+        if (notification !== '') streams.stderr.write(`${notification}\n`);
+      })
+      .catch(() => undefined);
+  }
 
   try {
     await program.parseAsync(['node', 'depcheck', ...argv]);

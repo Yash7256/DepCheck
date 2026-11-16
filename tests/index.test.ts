@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { CLI_VERSION, createProgram, runCli } from '../src/cli/program.js';
 import type { CliStreams } from '../src/cli/types.js';
@@ -22,6 +22,16 @@ function streams(): CliStreams & { stdout: TestStream; stderr: TestStream } {
 }
 
 const temporaryDirectories: string[] = [];
+const previousUpdateNotifierSetting = process.env.DEPCHECK_NO_UPDATE_NOTIFIER;
+
+beforeAll(() => {
+  process.env.DEPCHECK_NO_UPDATE_NOTIFIER = '1';
+});
+
+afterAll(() => {
+  if (previousUpdateNotifierSetting === undefined) delete process.env.DEPCHECK_NO_UPDATE_NOTIFIER;
+  else process.env.DEPCHECK_NO_UPDATE_NOTIFIER = previousUpdateNotifierSetting;
+});
 
 async function createCliFixture(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), 'depcheck-cli-'));

@@ -34,6 +34,7 @@ dependencies.
 - [Reports](#reports)
 - [Configuration](#configuration)
 - [Live progress](#live-progress)
+- [Update notifications](#update-notifications)
 - [Exit codes](#exit-codes)
 - [CI usage](#ci-usage)
 - [Supported package managers](#supported-package-managers)
@@ -635,6 +636,35 @@ Disable progress with either option:
 ```sh
 depcheck scan . --no-progress
 depcheck scan . --quiet
+```
+
+## Update notifications
+
+Normal DepCheck commands check the npm `latest` dist-tag in the background. DepCheck checks the
+registry at most once every 24 hours and stores only the public latest-version metadata in the
+user-level cache. Network failures and cache permission errors remain silent.
+
+Update warnings go to stderr, so JSON and HTML report output on stdout remains valid. Help and
+version commands do not perform update checks. DepCheck never installs updates automatically.
+
+Disable notifications for one command or a shell session with either environment variable:
+
+```sh
+DEPCHECK_NO_UPDATE_NOTIFIER=1 depcheck scan .
+NO_UPDATE_NOTIFIER=1 depcheck scan .
+```
+
+PowerShell:
+
+```powershell
+$env:DEPCHECK_NO_UPDATE_NOTIFIER = "1"
+depcheck scan .
+```
+
+Update manually with npm:
+
+```sh
+npm install --global depcheck-audit-cli
 ```
 
 ## Exit codes

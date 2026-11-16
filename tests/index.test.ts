@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -40,6 +40,14 @@ afterEach(async () => {
 describe('project foundation', () => {
   it('exports the package name', () => {
     expect(packageName).toBe('DepCheck');
+  });
+
+  it('keeps the CLI version synchronized with package metadata', async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+
+    expect(CLI_VERSION).toBe(packageJson.version);
   });
 });
 

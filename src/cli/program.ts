@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { Command } from 'commander';
 
 import { registerDuplicatesCommand } from '../commands/duplicates.js';
@@ -12,7 +14,19 @@ import { getGlobalOptions } from './options.js';
 import { createTerminalOutput } from './output.js';
 import type { CliGlobalOptions, CliStreams, ExitCode } from './types.js';
 
-export const CLI_VERSION = '0.1.0';
+declare const __DEPCHECK_VERSION__: string;
+
+function readSourcePackageVersion(): string {
+  const sourcePackageJson = JSON.parse(
+    readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+  ) as { version?: unknown };
+  return typeof sourcePackageJson.version === 'string'
+    ? sourcePackageJson.version
+    : '0.0.0-unknown';
+}
+
+export const CLI_VERSION =
+  typeof __DEPCHECK_VERSION__ === 'string' ? __DEPCHECK_VERSION__ : readSourcePackageVersion();
 export const CLI_DESCRIPTION = 'Audit JavaScript and TypeScript project dependencies.';
 
 export function createProgram(streams: CliStreams): Command {
